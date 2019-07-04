@@ -79,8 +79,6 @@ app.get("/api/secrets/:id", (req, res) => {
 });
 
 app.post("/api/secrets", (req, res) => {
-  bcrypt.hash(req.body.Secret, null, null, function(err, hash) {
-    req.body.Secret = hash;
     Secrets.create(req.body)
       .then(secret => {
         res.send(secret);
@@ -89,7 +87,7 @@ app.post("/api/secrets", (req, res) => {
         console.log(err);
         res.send(err);
       });
-  });
+  
 });
 
 app.listen(3020);
