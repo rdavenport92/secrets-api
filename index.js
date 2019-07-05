@@ -1,5 +1,6 @@
 const app = require("express")();
 const server = require("http").Server(app);
+const io = require("socket.io")(server);
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt-nodejs");
 const mongoose = require("mongoose");
@@ -79,15 +80,59 @@ app.get("/api/secrets/:id", (req, res) => {
 });
 
 app.post("/api/secrets", (req, res) => {
+  Secrets.find({}).then(secrets => {
+    for (let secret of secrets) {
+      if (secret.Name === req.body.Name) {
+        res.send({ name: "This name has already been used!" });
+        return;
+      } else if (secret.Secret === req.body.Secret) {
+        res.send({ name: "This secret already exists!" });
+        return;
+      }
+    }
     Secrets.create(req.body)
       .then(secret => {
         res.send(secret);
+        io.emit("new secret", secret);
       })
       .catch(err => {
         console.log(err);
         res.send(err);
       });
-  
+  });
 });
 
-app.listen(3020);
+app.put("/api/secrets/:id", (req, res) => {
+  Secrets.findOne({ _id: req.params.id })
+    .then(secret => {
+      if (
+        secret.Name !== req.body.Name ||
+        secret.Secret !== req.body.Secret ||
+        secret.Description !== req.body.Description
+      ) {
+        Secrets.findByIdAndUpdate({ _id: req.params.id }, req.body)
+          .then(secret => {
+            let newSecret = { ...req.body };
+            newSecret._id = secret._id;
+            res.send(newSecret);
+            io.emit("update secret", newSecret);
+          })
+          .catch(err => {
+            console.log(err);
+            res.send(err);
+          });
+      } else {
+        res.send({ name: "No changes were detected!" });
+      }
+    })
+    .catch(err => {
+      console.log(err);
+      res.send(err);
+    });
+});
+
+io.on("connect", () => {
+  console.log("Connected to client!");
+});
+
+server.listen(3020);
