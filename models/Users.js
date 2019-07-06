@@ -13,6 +13,10 @@ const UsersSchema = new mongoose.Schema({
     type: String,
     required: [true, "Username field is required"]
   },
+  Email: {
+    type: String,
+    required: [true, "Email field is required"]
+  },
   Password: {
     type: String,
     required: [true, "Password field is required"]

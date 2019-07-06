@@ -11,6 +11,17 @@ const Secrets = require("./models/Secrets.js");
 mongoose.connect("mongodb://localhost/secrets");
 mongoose.Promise = global.Promise;
 
+const passwordReqs = password => {
+  if (password.length < 4) {
+    return {
+      pass: false,
+      error: "Password needs to be greater than 4 characters!"
+    };
+  } else {
+    return { pass: true };
+  }
+};
+
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
@@ -32,23 +43,90 @@ app.post("/api/users", (req, res) => {
       console.log(err);
       res.send(err);
     } else {
-      bcrypt.hash(req.body.Password, null, null, function(err, hash) {
-        req.body.Password = hash;
-        Users.create(req.body)
-          .then(user => {
-            res.send(user);
-          })
-          .catch(err => {
-            console.log(err);
-            res.send(err);
+      Users.find({})
+        .then(users => {
+          for (let user of users) {
+            if (user.Email === req.body.Email) {
+              res.send({
+                error:
+                  "Account associated with this email address already exists!"
+              });
+              return;
+            }
+            if (user.Username === req.body.Username) {
+              res.send({ error: "Username already taken!" });
+              return;
+            }
+            let Password = req.body.Password;
+            let passwordCheck = passwordReqs(Password);
+            if (passwordCheck.pass) {
+              bcrypt.hash(req.body.Password, null, null, function(err, hash) {
+                req.body.Password = hash;
+                Users.create(req.body)
+                  .then(user => {
+                    res.send(user);
+                  })
+                  .catch(err => {
+                    console.log(err);
+                    res.send(err);
+                  });
+              });
+            } else {
+              res.send({ error: passwordCheck.error });
+            }
+          }
+        })
+        .catch(err => res.send({ error: "Failed to create user!" }));
+    }
+  });
+});
+
+app.put("/api/users/:id", (req, res) => {
+  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+    if (err) {
+      console.log(err);
+      res.send({ error: err.name });
+    } else {
+      let Password = req.body.Password;
+      let passwordCheck = passwordReqs(Password);
+      if (passwordCheck.pass) {
+        //check that password is not same as before
+        Users.findOne({ _id: req.params.id }).then(user => {
+          bcrypt.compare(Password, user.Password, (err, result) => {
+            if (err) {
+              res.send({ error: "Failed to update password!" });
+            } else {
+              if (result) {
+                res.send({ error: "New password matches current password!" });
+              } else {
+                bcrypt.hash(Password, null, null, function(err, hash) {
+                  if (err) {
+                    res.send({ error: "Failed to update password!" });
+                  } else {
+                    user.Password = hash;
+                    Users.findByIdAndUpdate({ _id: req.params.id }, user)
+                      .then(() => {
+                        res.send({
+                          success: "Password was successfully updated!"
+                        });
+                      })
+                      .catch(err => {
+                        res.send({ error: "Password was not updated!" });
+                      });
+                  }
+                });
+              }
+            }
           });
-      });
+        });
+      } else {
+        res.send({ error: passwordCheck.error });
+      }
     }
   });
 });
 
 app.post("/api/login", (req, res) => {
-  console.log(req);
   Users.find({})
     .then(users => {
       let user = users.filter(user => user.Username === req.body.Username)[0];
@@ -63,8 +141,13 @@ app.post("/api/login", (req, res) => {
           if (result) {
             let token = jwt.sign({ Username: user.Username }, "secrets");
             access.token = token;
-            access._id = user._id;
-            access.firstname = user.Firstname;
+            access.user = {
+              _id: user._id,
+              Firstname: user.Firstname,
+              Lastname: user.Lastname,
+              Username: user.Username,
+              Email: user.Email
+            };
           }
           res.send(access);
         }
