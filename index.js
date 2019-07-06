@@ -45,36 +45,40 @@ app.post("/api/users", (req, res) => {
     } else {
       Users.find({})
         .then(users => {
-          for (let user of users) {
-            if (user.Email === req.body.Email) {
-              res.send({
-                error:
-                  "Account associated with this email address already exists!"
-              });
-              return;
-            }
-            if (user.Username === req.body.Username) {
-              res.send({ error: "Username already taken!" });
-              return;
-            }
+          if (users.length>0){
+            for (let user of users) {
+              if (user.Email === req.body.Email) {
+                res.send({
+                  error:
+                    "Account associated with this email address already exists!"
+                });
+                return;
+              }
+              if (user.Username === req.body.Username) {
+                res.send({ error: "Username already taken!" });
+                return;
+              }
+              
+            }}
             let Password = req.body.Password;
-            let passwordCheck = passwordReqs(Password);
-            if (passwordCheck.pass) {
-              bcrypt.hash(req.body.Password, null, null, function(err, hash) {
-                req.body.Password = hash;
-                Users.create(req.body)
-                  .then(user => {
-                    res.send(user);
-                  })
-                  .catch(err => {
-                    console.log(err);
-                    res.send(err);
-                  });
-              });
-            } else {
-              res.send({ error: passwordCheck.error });
-            }
-          }
+              let passwordCheck = passwordReqs(Password);
+              if (passwordCheck.pass) {
+                bcrypt.hash(req.body.Password, null, null, function(err, hash) {
+                  req.body.Password = hash;
+                  Users.create(req.body)
+                    .then(user => {
+                      res.send(user);
+                    })
+                    .catch(err => {
+                      console.log(err);
+                      res.send(err);
+                    });
+                });
+              } else {
+                res.send({ error: passwordCheck.error });
+              }
+          
+          
         })
         .catch(err => res.send({ error: "Failed to create user!" }));
     }
