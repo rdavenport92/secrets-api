@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt-nodejs");
 const mongoose = require("mongoose");
 const Users = require("./models/Users.js");
 const Secrets = require("./models/Secrets.js");
+const secretPhrase = "somesecretphrase";
 
 mongoose.connect("mongodb://localhost/secrets");
 mongoose.Promise = global.Promise;
@@ -38,14 +39,14 @@ app.use(function(req, res, next) {
 app.use(bodyParser.json());
 
 app.post("/api/users", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send(err);
     } else {
       Users.find({})
         .then(users => {
-          if (users.length>0){
+          if (users.length > 0) {
             for (let user of users) {
               if (user.Email === req.body.Email) {
                 res.send({
@@ -58,27 +59,25 @@ app.post("/api/users", (req, res) => {
                 res.send({ error: "Username already taken!" });
                 return;
               }
-              
-            }}
-            let Password = req.body.Password;
-              let passwordCheck = passwordReqs(Password);
-              if (passwordCheck.pass) {
-                bcrypt.hash(req.body.Password, null, null, function(err, hash) {
-                  req.body.Password = hash;
-                  Users.create(req.body)
-                    .then(user => {
-                      res.send(user);
-                    })
-                    .catch(err => {
-                      console.log(err);
-                      res.send(err);
-                    });
+            }
+          }
+          let Password = req.body.Password;
+          let passwordCheck = passwordReqs(Password);
+          if (passwordCheck.pass) {
+            bcrypt.hash(req.body.Password, null, null, function(err, hash) {
+              req.body.Password = hash;
+              Users.create(req.body)
+                .then(user => {
+                  res.send(user);
+                })
+                .catch(err => {
+                  console.log(err);
+                  res.send(err);
                 });
-              } else {
-                res.send({ error: passwordCheck.error });
-              }
-          
-          
+            });
+          } else {
+            res.send({ error: passwordCheck.error });
+          }
         })
         .catch(err => res.send({ error: "Failed to create user!" }));
     }
@@ -86,7 +85,7 @@ app.post("/api/users", (req, res) => {
 });
 
 app.put("/api/users/:id", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send({ error: err.name });
@@ -143,7 +142,7 @@ app.post("/api/login", (req, res) => {
         } else {
           let access = { result };
           if (result) {
-            let token = jwt.sign({ Username: user.Username }, "secrets");
+            let token = jwt.sign({ Username: user.Username }, secretPhrase);
             access.token = token;
             access.user = {
               _id: user._id,
@@ -164,7 +163,7 @@ app.post("/api/login", (req, res) => {
 });
 
 app.get("/api/secrets", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send(err);
@@ -182,7 +181,7 @@ app.get("/api/secrets", (req, res) => {
 });
 
 app.get("/api/secrets/:id", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send(err);
@@ -200,7 +199,7 @@ app.get("/api/secrets/:id", (req, res) => {
 });
 
 app.post("/api/secrets", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send(err);
@@ -230,7 +229,7 @@ app.post("/api/secrets", (req, res) => {
 });
 
 app.put("/api/secrets/:id", (req, res) => {
-  jwt.verify(req.headers.authorization, "secrets", (err, decoded) => {
+  jwt.verify(req.headers.authorization, secretPhrase, (err, decoded) => {
     if (err) {
       console.log(err);
       res.send(err);
